@@ -25,4 +25,6 @@ export ANTHROPIC_API_KEY=...        # ou la variable nommée par api_key_env dan
 cd <dossier de travail> && <chemin du dépôt>/bin/harness [--model <alias>]
 ```
 
+Pendant une session, les sorties de commande trop longues sont enregistrées dans `.harness/outputs/` du dossier de travail (exclu de Git par son propre `.gitignore`, supprimé à la sortie). La clé `[tools] toolset` choisit les outils exposés au modèle : `full` (défaut) ou `read_only`.
+
 Développement : `uv sync`, `uv run pytest`, `uv run ruff check .`, `uv run pyright`.

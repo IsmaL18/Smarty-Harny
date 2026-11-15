@@ -62,13 +62,19 @@ Le découpage « une phase de tour = un module » est lisible mais produit une t
 Boucle **entièrement synchrone**, avec vérification d'interruption, budget d'itérations et un appel de grâce :
 
 ```python
-while (api_call_count < self.max_iterations and self.iteration_budget.remaining > 0) \
-        or self._budget_grace_call:
-    if self._interrupt_requested: break
-    response = client.chat.completions.create(model=model, messages=messages, tools=tool_schemas)
+while (
+    api_call_count < self.max_iterations and self.iteration_budget.remaining > 0
+) or self._budget_grace_call:
+    if self._interrupt_requested:
+        break
+    response = client.chat.completions.create(
+        model=model, messages=messages, tools=tool_schemas
+    )
     if response.tool_calls:
         for tc in response.tool_calls:
-            messages.append(tool_result_message(handle_function_call(tc.name, tc.args, task_id)))
+            messages.append(
+                tool_result_message(handle_function_call(tc.name, tc.args, task_id))
+            )
         api_call_count += 1
     else:
         return response.content

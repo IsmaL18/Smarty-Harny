@@ -1,6 +1,6 @@
-"""Les trois outils et le retour de leurs erreurs au modèle.
+"""Les outils de base et le retour de leurs erreurs au modèle.
 
-Spec 001 §4.2, CA-6 à CA-11, §6 ; ADR-0002 (les marqueurs entre crochets du
+Spec 001 §4.2, CA-6 à CA-7 et CA-9 à CA-11 (CA-8 remplacé par la 002, voir test_long_outputs.py), §6 ; ADR-0002 (les marqueurs entre crochets du
 tableau §3 sont le contrat vérifié ici) ; ADR-0005 §3 (délai des commandes).
 Notion : tool-calling.
 
@@ -39,31 +39,6 @@ async def test_reading_a_binary_file_is_refused_explicitly(workdir):
     assert ended_with(events) == "done"
     assert "error: binary file, not read" in output
     assert "BINAIRE-ENTETE" not in output
-
-
-async def test_long_file_and_long_command_output_are_truncated_with_explicit_mention(
-    workdir,
-):
-    """CA-8 : lecture > max_read_chars et sortie > max_output_chars → contenu
-    tronqué qui le dit (`[TRUNCATED`), code de sortie toujours rendu."""
-    (workdir / "long.txt").write_text("L" * 5000)
-    read = call("read_file", path="long.txt")
-    shell = call("shell", command="head -c 5000 /dev/zero | tr '\\0' 'S'")
-    config = make_config(max_read=200, max_output=300)
-    model, events = await one_turn(
-        workdir, tools(read, shell), say("Tronqué."), config=config
-    )
-
-    read_output = model.tool_output(read)
-    assert ended_with(events) == "done"
-    assert "[TRUNCATED" in read_output
-    assert read_output.startswith("L")
-    assert read_output.count("L") < 5000
-
-    shell_output = model.tool_output(shell)
-    assert "[TRUNCATED" in shell_output
-    assert shell_output.count("S") < 5000
-    assert "[exit code: 0]" in shell_output
 
 
 async def test_write_creates_missing_folders_and_overwrites_existing_files(workdir):

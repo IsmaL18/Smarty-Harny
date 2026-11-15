@@ -11,6 +11,8 @@ budget_usd = 1.00                 # budget de session ; « oui » accorde une tr
 max_read_chars = 40000            # lecture de fichier
 max_output_chars = 20000          # sortie de commande
 command_timeout_s = 120
+max_saved_output_mb = 50          # plafond disque d'une sortie de commande enregistrée
+toolset = "full"                  # "full" ou "read_only" (lecture de fichiers seulement)
 
 [models.sonnet]
 model = "anthropic/claude-sonnet-5-5"

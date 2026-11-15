@@ -2,6 +2,9 @@
 
 from harness.tools.base import ToolResult
 from harness.tools.environment import Environment
+from harness.tools.filestate import FileTracker
+from harness.tools.outputs import OutputStore
+from harness.tools.truncate import assemble, header
 
 _PARAMETERS = {
     "type": "object",
@@ -16,21 +19,30 @@ class Shell:
     description = (
         "Run a shell command with bash in the working directory. stdin is closed, stderr is "
         "merged into stdout, and no state persists between calls (a `cd` does not survive). "
-        "Long output is truncated; commands are killed after a timeout."
+        "Long output is cut in the middle (start and end are kept) and the full output is "
+        "saved to a file named in the header; commands are killed after a timeout."
     )
     parameters = _PARAMETERS
 
-    def __init__(self, command_timeout_s: float):
+    def __init__(
+        self, command_timeout_s: float, tracker: FileTracker, store: OutputStore
+    ):
         self._timeout = command_timeout_s
+        self._tracker = tracker
+        self._store = store
 
     async def run(self, args: dict, env: Environment) -> ToolResult:
-        outcome = await env.run(args["command"], self._timeout)
-        parts = [outcome.output]
-        if outcome.discarded_chars:
-            parts.append(
-                f"[TRUNCATED: showing first {len(outcome.output)} characters, "
-                f"{outcome.discarded_chars} more omitted]"
-            )
+        # Les fichiers que la commande modifie ne doivent pas bloquer la modification
+        # suivante, mais un changement extérieur antérieur reste signalé (ADR-0010 §5).
+        clean = await self._tracker.clean_files(env)
+        try:
+            outcome = await env.run(args["command"], self._timeout, self._store)
+        finally:
+            await self._tracker.absorb(env, clean)
+        text = outcome.text
+        if outcome.truncation is not None:
+            text = assemble(text, header(outcome.truncation, "command"), outcome.tail)
+        parts = [text]
         if outcome.timed_out:
             parts.append(f"[TIMEOUT: killed after {self._timeout:g}s]")
             return ToolResult("\n".join(parts), True)

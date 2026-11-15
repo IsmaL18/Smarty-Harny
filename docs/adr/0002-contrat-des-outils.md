@@ -1,6 +1,6 @@
 # ADR-0002 — Contrat des outils et retour des erreurs au modèle
 
-Statut : proposé · Spec : §4.2, CA-5 à CA-11 · Notion : `tool-calling`
+Statut : proposé (amendé par 0009 à 0011 : troncature, ensembles d'outils, arguments) · Spec : §4.2, CA-5 à CA-11 · Notion : `tool-calling`
 
 ## Contexte
 
