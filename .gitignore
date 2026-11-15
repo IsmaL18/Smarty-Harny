@@ -16,3 +16,6 @@ build/
 
 # OS
 .DS_Store
+
+# Dépôts jetables pour tester le harness (dépôts Git imbriqués)
+playground/

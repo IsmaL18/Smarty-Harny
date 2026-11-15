@@ -1,0 +1,25 @@
+# Copier vers ~/.config/harness/config.toml (hors du dossier de travail de l'agent, ADR-0007).
+# Aucune clé API ici : seul le nom de la variable d'environnement figure dans le fichier.
+
+default_model = "sonnet"          # alias obligatoire, présent dans [models]
+
+[limits]
+max_steps_per_turn = 25           # étapes par tour
+budget_usd = 1.00                 # budget de session ; « oui » accorde une tranche identique
+
+[tools]
+max_read_chars = 40000            # lecture de fichier
+max_output_chars = 20000          # sortie de commande
+command_timeout_s = 120
+
+[models.sonnet]
+model = "anthropic/claude-sonnet-5-5"
+# api_key_env = "ANTHROPIC_API_KEY"   # défaut pour anthropic/
+# max_output_tokens = 8192
+# request_timeout_s = 300
+
+[models.local]
+model = "openai/<nom-du-modèle>"
+api_base = "http://host.docker.internal:8080/v1"
+# input_price_per_mtok = 0.0      # optionnels : sans eux, coût « non estimé »
+# output_price_per_mtok = 0.0

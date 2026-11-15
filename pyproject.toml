@@ -1,7 +1,37 @@
 [project]
 name = "harness-engineering-sandbox"
 version = "0.1.0"
-description = "Add your description here"
+description = "Harness d'agent LLM construit par itérations pour apprendre le harness engineering"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "litellm",
+    "jsonschema",
+]
+
+[project.scripts]
+harness = "harness.cli.main:main"
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pyright",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-xdist",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harness"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# Diagnostic : un test bloqué plus de 60 s affiche les piles de tous les threads.
+# Les tests bornent eux-mêmes leur durée (asyncio.wait_for) ; leurs délais réels sont de l'ordre de la seconde.
+faulthandler_timeout = 60

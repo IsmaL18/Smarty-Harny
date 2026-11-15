@@ -25,6 +25,7 @@ Le niveau de rigueur (tests, revues) se décide à chaque itération, au cadrage
 - Approche « équilibrée » : le cœur du harness (boucle, outils, contexte, permissions) est écrit à la main ; le périphérique passe par des bibliothèques.
 - Appels aux modèles via LiteLLM (Anthropic + tout provider compatible OpenAI, dont `mlx_lm.server` et Ollama en local). Version de LiteLLM figée dans `uv.lock`.
 - Le harness s'exécute entièrement dans un conteneur Docker (Colima sur le poste). La clé API est lisible depuis le conteneur : risque accepté au début, à traiter dans une itération dédiée.
+- Tests : uniquement des tests de comportement du harness (ce que voit l'utilisateur ou le modèle), jamais fonction par fonction. Un test ne doit pas casser à chaque petite modification interne. Peu de tests, mais pertinents.
 - Fiches de veille : suivre la grille `docs/veille/_grille.md`, marquer chaque affirmation [vérifié] ou [déduit].
 
 ## Commandes
