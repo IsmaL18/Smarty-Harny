@@ -9,18 +9,24 @@ Seule `CancelledError` (Ctrl+C, ADR-0005) traverse : c'est la boucle qui la trai
 """
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol
 
 import jsonschema
 
+from harness.tools.arguments import coerce_arguments
 from harness.tools.environment import Environment
 
 
 @dataclass(frozen=True)
 class ToolResult:
-    content: str
+    content: str  # ce que voit le modèle
     is_error: bool
+    # Réservés à l'utilisateur (ADR-0010 §12) : ligne-titre et détail (diff) affichés par
+    # le REPL ; le modèle ne les voit jamais.
+    title: str | None = None
+    detail: str | None = None
 
 
 class Tool(Protocol):
@@ -32,7 +38,7 @@ class Tool(Protocol):
 
 
 class ToolRegistry:
-    def __init__(self, tools: list[Tool], environment: Environment):
+    def __init__(self, tools: Iterable[Tool], environment: Environment):
         self._tools = {tool.name: tool for tool in tools}
         self._environment = environment
 
@@ -63,11 +69,29 @@ class ToolRegistry:
             args = json.loads(function.get("arguments") or "{}")
         except json.JSONDecodeError as exc:
             return ToolResult(f"error: invalid arguments: not valid JSON ({exc})", True)
+        # Formes corrigées d'après le schéma (ADR-0009 §5), puis validation stricte.
+        if isinstance(args, dict):
+            args = coerce_arguments(args, tool.parameters)
         try:
             jsonschema.validate(args, tool.parameters)
         except jsonschema.ValidationError as exc:
-            return ToolResult(f"error: invalid arguments: {exc.message}", True)
+            return ToolResult(_describe_invalid(exc), True)
         try:
             return await tool.run(args, self._environment)
         except Exception as exc:  # noqa: BLE001 - toute erreur d'outil devient un résultat
             return ToolResult(f"error: {type(exc).__name__}: {exc}", True)
+
+
+def _describe_invalid(exc: jsonschema.ValidationError) -> str:
+    """Message qui nomme l'argument fautif et la forme attendue (ADR-0009 §7)."""
+    name = ""
+    for part in exc.absolute_path:
+        name += (
+            f"[{part}]" if isinstance(part, int) else f".{part}" if name else str(part)
+        )
+    if not name:
+        return f"error: invalid arguments: {exc.message}"
+    if exc.validator == "type":
+        got = json.dumps(exc.instance, ensure_ascii=False)
+        return f"error: invalid argument '{name}': expected {exc.validator_value}, got {got}"
+    return f"error: invalid argument '{name}': {exc.message}"

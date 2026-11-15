@@ -4,6 +4,8 @@ import tomllib
 from dataclasses import dataclass, field, fields
 from typing import Any
 
+from harness.tools.toolsets import DEFAULT_TOOLSET, TOOLSETS
+
 
 class ConfigError(Exception):
     """Configuration invalide ; le message (en français) nomme la clé et la correction."""
@@ -20,6 +22,8 @@ class ToolsConfig:
     max_read_chars: int = 40000
     max_output_chars: int = 20000
     command_timeout_s: float = 120
+    max_saved_output_mb: int = 50
+    toolset: str = DEFAULT_TOOLSET
 
 
 @dataclass(frozen=True)
@@ -87,13 +91,21 @@ def load_config(toml_text: str) -> Config:
 
     tools_raw = raw.get("tools", {})
     _check_keys("tools", tools_raw, {f.name for f in fields(ToolsConfig)})
+    toolset = tools_raw.get("toolset", DEFAULT_TOOLSET)
+    if toolset not in TOOLSETS:
+        raise ConfigError(
+            f"[tools] toolset : ensemble inconnu '{toolset}'. "
+            f"Ensembles disponibles : {', '.join(TOOLSETS)}."
+        )
     tools = ToolsConfig(
+        toolset=toolset,
         **{
             key: _number(
                 "tools", key, value, float if key == "command_timeout_s" else int
             )
             for key, value in tools_raw.items()
-        }
+            if key != "toolset"
+        },
     )
 
     models: dict[str, ModelProfile] = {}

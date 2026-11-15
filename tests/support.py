@@ -16,7 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from harness.config import Config, Limits, ModelProfile, ToolsConfig
+from harness.config import Config, Limits, ModelProfile, ToolsConfig, load_config
 from harness.models.base import ModelResponse, ProviderError
 from harness.tools.environment import LocalEnvironment
 
@@ -64,7 +64,11 @@ class Hang:
     seconds: float = 60.0
 
 
-Step = ModelResponse | ProviderError | Hang
+# Étape dynamique : fonction des messages déjà échangés, utile quand l'appel suivant
+# dépend de ce que l'outil a répondu (p. ex. le chemin d'un fichier de sortie).
+Dynamic = Callable[[list[dict]], ModelResponse]
+
+Step = ModelResponse | ProviderError | Hang | Dynamic
 
 
 # --------------------------------------------------------------------------
@@ -106,6 +110,8 @@ class ScriptedModel:
         if isinstance(step, Hang):
             await asyncio.sleep(step.seconds)
             return say("réponse arrivée après l'attente")
+        if not isinstance(step, ModelResponse):
+            return step(messages)
         return step
 
     async def check(self) -> None:
@@ -131,6 +137,21 @@ class ScriptedModel:
     def saw_text(self, needle: str, call_index: int = -1) -> bool:
         """Le texte apparaît-il dans un message reçu lors de l'appel donné ?"""
         return any(needle in _text_of(m) for m in self.calls[call_index])
+
+
+def replace(old_text: str, new_text: str) -> dict:
+    """Un remplacement de l'outil `edit_file` (ADR-0010 §1)."""
+    return {"old_text": old_text, "new_text": new_text}
+
+
+def edit(path: str, *replacements: dict) -> dict:
+    """Appel `edit_file` avec une liste de remplacements."""
+    return call("edit_file", path=path, edits=list(replacements))
+
+
+def refused(output: str) -> bool:
+    """La réponse d'un outil est un refus de l'outil lui-même, pas un « outil inconnu »."""
+    return output.startswith("error:") and "unknown tool" not in output
 
 
 def tool_outputs(messages: list[dict], call_id: str) -> list[str]:
@@ -186,6 +207,39 @@ def make_config(
             command_timeout_s=timeout,
         ),
     )
+
+
+def config_from_toml(
+    *,
+    toolset: str | None = None,
+    max_saved_output_mb: int | None = None,
+    max_read: int = 40000,
+    max_output: int = 20000,
+    timeout: float = 5.0,
+) -> Config:
+    """Configuration construite comme en production, depuis le TOML.
+
+    Sert aux clés ajoutées par la 002 (`toolset`, `max_saved_output_mb`) : on ne
+    suppose rien du nom des champs de `Config`, seulement des clés TOML (ADR-0007, 0009, 0011).
+    """
+    extra = ""
+    if toolset is not None:
+        extra += f'toolset = "{toolset}"\n'
+    if max_saved_output_mb is not None:
+        extra += f"max_saved_output_mb = {max_saved_output_mb}\n"
+    return load_config(
+        'default_model = "scripted"\n'
+        '[models.scripted]\nmodel = "openai/scripted-model"\n'
+        f"[tools]\nmax_read_chars = {max_read}\nmax_output_chars = {max_output}\n"
+        f"command_timeout_s = {timeout}\n{extra}"
+    )
+
+
+def saved_path_in(output: str) -> str:
+    """Chemin du fichier de sortie enregistré, tel que l'en-tête de coupe le donne (CA-43)."""
+    found = re.search(r"[^\s\[\]()'\"`,;]*\.harness/[^\s\[\]()'\"`,;]+", output)
+    assert found, f"aucun chemin sous .harness/ dans la sortie : {output[:600]!r}"
+    return found.group(0).rstrip(".")
 
 
 def make_environment(config: Config, workdir: Path) -> LocalEnvironment:

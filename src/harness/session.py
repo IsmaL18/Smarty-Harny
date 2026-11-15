@@ -26,9 +26,13 @@ from harness.events import (
 from harness.models.base import ModelClient, ProviderError
 from harness.prompt import SYSTEM_PROMPT
 from harness.tools.base import ToolRegistry, ToolResult
+from harness.tools.edit_file import EditFile
 from harness.tools.environment import Environment
+from harness.tools.filestate import FileTracker
+from harness.tools.outputs import OutputStore
 from harness.tools.read_file import ReadFile
 from harness.tools.shell import Shell
+from harness.tools.toolsets import TOOLSETS
 from harness.tools.write_file import WriteFile
 
 Event = (
@@ -55,13 +59,21 @@ class Session:
     def __init__(self, config: Config, client: ModelClient, environment: Environment):
         self._config = config
         self._client = client
+        # État de session partagé par les outils, injecté à leur construction (ADR-0009 §4).
+        tracker = FileTracker()
+        self._outputs = OutputStore(
+            environment.workdir, config.tools.max_saved_output_mb
+        )
+        catalog = [
+            ReadFile(config.tools.max_read_chars, tracker),
+            WriteFile(tracker),
+            EditFile(tracker),
+            Shell(config.tools.command_timeout_s, tracker, self._outputs),
+        ]
+        # Le modèle ne voit et ne peut appeler que l'ensemble actif (ADR-0009 §3).
+        active = TOOLSETS[config.tools.toolset]
         self._registry = ToolRegistry(
-            [
-                ReadFile(config.tools.max_read_chars),
-                WriteFile(),
-                Shell(config.tools.command_timeout_s),
-            ],
-            environment,
+            [tool for tool in catalog if tool.name in active], environment
         )
         self.cost = CostTracker()
         # Historique au format OpenAI chat, en ajout seul (sauf le retrait documenté
@@ -76,6 +88,10 @@ class Session:
         ] = []  # appels d'outils sans résultat (invariant d'historique)
         self._actions: list[str] = []
         self._user_index = -1
+
+    def close(self) -> None:
+        """Fin de session : supprime les sorties de commande enregistrées (ADR-0011 §11)."""
+        self._outputs.cleanup()
 
     def set_client(self, client: ModelClient) -> None:
         """Changement de modèle : l'historique et le coût cumulé sont conservés."""

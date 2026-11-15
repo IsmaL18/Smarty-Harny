@@ -15,6 +15,8 @@ from harness.events import TurnEnded
 from harness.models.base import ModelClient, ProviderError
 from harness.session import Event, Session
 from harness.tools.environment import Environment, LocalEnvironment
+from harness.tools.outputs import OutputStore
+from harness.tools.toolsets import TOOLSETS
 
 COMMANDS = (
     "/quit : quitte et affiche le coût total",
@@ -57,8 +59,11 @@ async def run(
         say(error.message_fr)
         return
 
+    OutputStore.purge_stale(env.workdir)  # restes d'un arrêt brutal (ADR-0011 §12)
     session = Session(config, client, env)
     say(f"Dossier de travail : {env.workdir}")
+    toolset = config.tools.toolset
+    say(f"Ensemble d'outils : {toolset} ({', '.join(TOOLSETS[toolset])})")
     say(f"Modèle actif : {alias}")
     say(
         f"Limites : {config.limits.max_steps_per_turn} étapes par tour, "
@@ -144,33 +149,36 @@ async def run(
         alias = new_alias
         say(f"Modèle actif : {alias}")
 
-    while True:
-        try:
-            line = read_line("> ").strip()
-        except EOFError:
-            say()
-            break
-        except KeyboardInterrupt:
-            say()  # Ctrl+C à l'invite ne quitte pas (CA-19)
-            continue
-        if not line:
-            continue
-        if line == "/quit":
-            break
-        if line == "/detail":
-            detail = not detail
-            say("Mode détaillé : " + ("activé" if detail else "désactivé"))
-        elif line.startswith("/model"):
-            argument = line[len("/model") :].strip()
-            if argument:
-                await switch_model(argument)
+    try:
+        while True:
+            try:
+                line = read_line("> ").strip()
+            except EOFError:
+                say()
+                break
+            except KeyboardInterrupt:
+                say()  # Ctrl+C à l'invite ne quitte pas (CA-19)
+                continue
+            if not line:
+                continue
+            if line == "/quit":
+                break
+            if line == "/detail":
+                detail = not detail
+                say("Mode détaillé : " + ("activé" if detail else "désactivé"))
+            elif line.startswith("/model"):
+                argument = line[len("/model") :].strip()
+                if argument:
+                    await switch_model(argument)
+                else:
+                    say(f"Modèle actif : {alias}. Modèles : {', '.join(config.models)}")
+            elif line.startswith("/"):
+                say("Commande inconnue. Commandes :")
+                for command in COMMANDS:
+                    say("  " + command)
             else:
-                say(f"Modèle actif : {alias}. Modèles : {', '.join(config.models)}")
-        elif line.startswith("/"):
-            say("Commande inconnue. Commandes :")
-            for command in COMMANDS:
-                say("  " + command)
-        else:
-            await handle_turn(line)
+                await handle_turn(line)
+    finally:
+        session.close()  # supprime les sorties enregistrées, même sur exception
 
     say(f"Total de la session — {session.cost.display()}")

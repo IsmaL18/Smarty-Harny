@@ -35,9 +35,12 @@ def render(event: object, detail: bool) -> str | None:
         case ToolCallFinished(name, result):
             if detail:
                 kind = "erreur" if result.is_error else "résultat"
-                return f"{kind} de {name} :\n{result.content}"
+                shown = f"{kind} de {name} :\n{result.content}"
+                return f"{shown}\n{result.detail}" if result.detail else shown
             if result.is_error:
                 return f"erreur de {name} : {_short(result.content)}"
+            if result.title:
+                return f"résultat de {name} : {result.title}"
             return f"résultat de {name} : ok ({len(result.content)} caractères)"
         case AssistantMessage(text):
             # Jamais tronquée, dans les deux modes (CA-12 amendé) : c'est la sortie utile.

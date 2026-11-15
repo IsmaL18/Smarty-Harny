@@ -105,7 +105,7 @@ Chaque critère décrit ce que voient l'utilisateur ou le modèle, sans dépendr
 - **CA-5** Sur une demande qui exige de lire un fichier, d'en écrire un puis d'exécuter une commande, l'agent enchaîne les trois actions avant de répondre ; le fichier écrit existe ensuite dans le dossier de travail de l'hôte.
 - **CA-6** La lecture d'un fichier absent n'arrête pas la session : le modèle reçoit l'erreur, et la réponse suivante du modèle tient compte de cette erreur.
 - **CA-7** La lecture d'un fichier binaire est refusée : le modèle reçoit un refus explicite, pas le contenu brut.
-- **CA-8** La lecture d'un fichier plus long que la taille maximale, ou une commande à sortie plus longue que cette taille, donne au modèle un contenu tronqué qui mentionne explicitement la troncature.
+- **CA-8** *(remplacé par 002)* La lecture d'un fichier plus long que la taille maximale, ou une commande à sortie plus longue que cette taille, donne au modèle un contenu tronqué qui mentionne explicitement la troncature.
 - **CA-9** L'écriture dans un dossier inexistant crée le dossier et le fichier. L'écriture sur un fichier existant l'écrase.
 - **CA-10** Une commande en erreur renvoie au modèle son code de sortie et sa sortie ; la session continue.
 - **CA-11** Une commande qui ne termine pas est arrêtée au délai maximal ; le modèle est informé du dépassement et reçoit la sortie partielle ; la session continue.
