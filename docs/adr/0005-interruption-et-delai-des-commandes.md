@@ -1,6 +1,6 @@
 # ADR-0005 — Interruption (Ctrl+C) et délai maximal des commandes
 
-Statut : proposé · Spec : §4.1, §4.2, §6, CA-11, CA-18, CA-19 · Notion : `boucle-agent` (interruption propre approfondie à l'it. 7)
+Statut : proposé ; §2 et §3 amendés après revue, amendement validé par l'utilisateur le 2026-11-15 · Spec : §4.1, §4.2, §6, CA-11, CA-18, CA-19 · Notion : `boucle-agent` (interruption propre approfondie à l'it. 7)
 
 ## Contexte
 
