@@ -12,4 +12,17 @@ Un dépôt pour apprendre le harness engineering en le pratiquant : comprendre c
 
 ## État
 
-Panorama de veille terminé ([synthèse](docs/veille/synthese.md)). Feuille de route validée ; prochaine étape : itération 1 (v0). Pas encore de code.
+Panorama de veille terminé ([synthèse](docs/veille/synthese.md)). Itération 1 (v0, boucle agent) implémentée : REPL, outils `read_file` / `write_file` / `shell`, LiteLLM, limites d'étapes et de budget, Ctrl+C, conteneur Docker. Spec : [`specs/001-v0-boucle-agent.md`](specs/001-v0-boucle-agent.md) ; décisions : [`docs/adr/`](docs/adr/).
+
+## Lancer le harness
+
+Le harness ne s'exécute que dans son conteneur, sur le dossier courant monté en `/workspace`.
+
+```bash
+mkdir -p ~/.config/harness && cp config.example.toml ~/.config/harness/config.toml
+docker build -f docker/Dockerfile -t harness .
+export ANTHROPIC_API_KEY=...        # ou la variable nommée par api_key_env dans la config
+cd <dossier de travail> && <chemin du dépôt>/bin/harness [--model <alias>]
+```
+
+Développement : `uv sync`, `uv run pytest`, `uv run ruff check .`, `uv run pyright`.

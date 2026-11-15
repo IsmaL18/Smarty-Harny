@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Lanceur du harness (ADR-0006) : la commande documentée de CA-25.
+# Un seul chemin hôte est visible de l'agent : le dossier courant, monté sur /workspace.
+set -euo pipefail
+
+CONFIG="${HARNESS_CONFIG:-$HOME/.config/harness/config.toml}"
+if [[ ! -f "$CONFIG" ]]; then
+  echo "Configuration introuvable : $CONFIG. Copiez config.example.toml à cet endroit." >&2
+  exit 1
+fi
+
+# Clés transmises par nom (jamais par valeur sur la ligne de commande).
+KEY_ARGS=(-e ANTHROPIC_API_KEY -e OPENAI_API_KEY)
+while IFS= read -r var; do
+  [[ -n "$var" ]] && KEY_ARGS+=(-e "$var")
+done < <(sed -nE 's/^[[:space:]]*api_key_env[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG")
+
+exec docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD":/workspace -w /workspace \
+  --add-host=host.docker.internal:host-gateway \
+  "${KEY_ARGS[@]}" \
+  -e HARNESS_CONFIG_TOML="$(cat "$CONFIG")" \
+  harness "$@"
