@@ -50,12 +50,16 @@ Lacunes, déjà reprises dans les fiches :
 
 Le grill n'a pas couvert la réindentation, le nettoyage des restes après arrêt brutal, ni l'absorption des changements du shell.
 
+## Validation manuelle (2026-11-16)
+
+Faite par l'utilisateur sur un modèle local (`mlx_lm.server`, LFM2.5-24B-A2B 4 bits), dans le conteneur, sur neuf étapes : `edit_file` (remplacement, refus sans lecture, fichier changé, `touch`, modification par le shell, multi-ligne en milieu de ligne refusé et sur lignes entières accepté), sortie longue (début, fin, en-tête, fichier enregistré), relecture par plage, dossier réservé, nettoyage à la sortie, `docker stop`, ensemble `read_only`. L'utilisateur rapporte que tout a fonctionné. Seul contrôle que j'ai fait moi-même : les fichiers enregistrés par `seq 1 100000` et `seq 1 120000` font 588 895 et 728 895 octets, la taille exacte des sorties complètes.
+
 ## Non vérifié
 
 - Les trois corrections de robustesse (voir ci-dessus) n'ont aucun test.
-- ADR-0011 : un `docker stop` (SIGTERM sans gestionnaire) ne passe pas par le `finally` ; seule la purge à 24 h nettoie. À essayer à la validation humaine.
-- Répartition 40 / 60 et budgets : réglages de départ, jamais ajustés à l'usage sur un vrai modèle.
-- `edit_file` n'a pas été exercé par un modèle réel (Anthropic ni local) ; les tests passent par `Session.run_turn` avec un modèle simulé.
+- `docker stop` : après l'arrêt, `.harness/outputs` n'existait plus (aucun reste). Je ne sais pas si une sortie longue avait été produite avant l'arrêt ; si non, le test ne prouve pas que le `finally` s'exécute sur SIGTERM. À refaire en produisant d'abord une sortie longue.
+- Répartition 40 / 60 et budgets : validés à l'œil sur un modèle local, jamais ajustés sur une vraie tâche.
+- `edit_file` n'a été exercé que par un modèle local, pas par Anthropic.
 - Un `old_text` multi-ligne dont la dernière ligne est tronquée en milieu de ligne est maintenant refusé : un modèle qui copie mal une fin de ligne doit relire, ce qui peut coûter un aller-retour.
 
 ## Suite
