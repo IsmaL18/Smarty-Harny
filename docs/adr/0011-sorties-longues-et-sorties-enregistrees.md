@@ -49,7 +49,7 @@ La v0 garde le début d'une sortie trop longue. Or l'information utile d'une com
 
 ## Conséquences
 
-- **Non vérifié** : un `docker stop` envoie SIGTERM à un processus sans gestionnaire ; le `finally` ne s'exécute pas dans ce cas. Le nettoyage à 24 h sert de filet. À essayer à la validation humaine ; une option (`--init`, gestionnaire de signal) est à décider alors.
+- **Vérifié le 2026-11-16, limite acceptée** : un `docker stop` ne passe pas par le `finally` (le harness est le processus 1 du conteneur, sans gestionnaire de SIGTERM) ; `.harness/outputs/` reste après l'arrêt avec la sortie enregistrée. Seule la purge à 24 h au lancement suivant nettoie. Décision : ne pas ajouter de gestionnaire de signal ; les restes sont ignorés par Git et sans danger. À reprendre si le coût disque devient un problème. Aucun test ne couvre ce comportement : l'ADR ne l'affirme pas comme garanti.
 - La répartition 40/60 et les budgets sont des réglages de départ, ajustés à l'usage (spec §9 q.4).
 - La limite « ligne géante » ne peut pas se lire par plage de lignes : le modèle doit passer par le shell (`cut`, `head -c`).
 - `config.example.toml` gagne `max_saved_output_mb` ; le README documente le dossier `.harness/`.

@@ -57,7 +57,7 @@ Faite par l'utilisateur sur un modèle local (`mlx_lm.server`, LFM2.5-24B-A2B 4 
 ## Non vérifié
 
 - Les trois corrections de robustesse (voir ci-dessus) n'ont aucun test.
-- `docker stop` : après l'arrêt, `.harness/outputs` n'existait plus (aucun reste). Je ne sais pas si une sortie longue avait été produite avant l'arrêt ; si non, le test ne prouve pas que le `finally` s'exécute sur SIGTERM. À refaire en produisant d'abord une sortie longue.
+- `docker stop` (vérifié le 2026-11-16, avec une sortie longue produite avant l'arrêt) : `.harness/outputs/` reste, le `finally` ne s'exécute pas sur SIGTERM. Décision de l'utilisateur : accepter la purge à 24 h, sans gestionnaire de signal ni `--init` (ADR-0011, amendé).
 - Répartition 40 / 60 et budgets : validés à l'œil sur un modèle local, jamais ajustés sur une vraie tâche.
 - `edit_file` n'a été exercé que par un modèle local, pas par Anthropic.
 - Un `old_text` multi-ligne dont la dernière ligne est tronquée en milieu de ligne est maintenant refusé : un modèle qui copie mal une fin de ligne doit relire, ce qui peut coûter un aller-retour.
