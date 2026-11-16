@@ -1,6 +1,6 @@
 # ADR-0008 — Découpage en modules et points d'entrée testables
 
-Statut : proposé · Spec : §5, §8, §9 q.3 · Notion : `boucle-agent`
+Statut : proposé ; §5 complété par ADR-0012 (`/resume`, `/branch`, options de lancement) · Spec : §5, §8, §9 q.3 · Notion : `boucle-agent`
 
 ## Contexte
 

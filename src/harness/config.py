@@ -27,6 +27,14 @@ class ToolsConfig:
 
 
 @dataclass(frozen=True)
+class SessionsConfig:
+    lock_stale_s: float = 30  # bail du verrou de session (ADR-0012 §3)
+    retention_days: float = (
+        30  # purge des sessions inactives au lancement (ADR-0012 §5)
+    )
+
+
+@dataclass(frozen=True)
 class ModelProfile:
     model: str
     api_base: str | None = None
@@ -43,6 +51,7 @@ class Config:
     models: dict[str, ModelProfile]
     limits: Limits = field(default_factory=Limits)
     tools: ToolsConfig = field(default_factory=ToolsConfig)
+    sessions: SessionsConfig = field(default_factory=SessionsConfig)
 
 
 def _number(
@@ -76,7 +85,9 @@ def load_config(toml_text: str) -> Config:
         raw = tomllib.loads(toml_text)
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"Configuration illisible (TOML invalide) : {exc}") from exc
-    _check_keys("racine", raw, {"default_model", "limits", "tools", "models"})
+    _check_keys(
+        "racine", raw, {"default_model", "limits", "tools", "sessions", "models"}
+    )
 
     limits_raw = raw.get("limits", {})
     _check_keys("limits", limits_raw, {f.name for f in fields(Limits)})
@@ -106,6 +117,15 @@ def load_config(toml_text: str) -> Config:
             for key, value in tools_raw.items()
             if key != "toolset"
         },
+    )
+
+    sessions_raw = raw.get("sessions", {})
+    _check_keys("sessions", sessions_raw, {f.name for f in fields(SessionsConfig)})
+    sessions = SessionsConfig(
+        **{
+            key: _number("sessions", key, value, float)
+            for key, value in sessions_raw.items()
+        }
     )
 
     models: dict[str, ModelProfile] = {}
@@ -141,4 +161,10 @@ def load_config(toml_text: str) -> Config:
         raise ConfigError(
             f"default_model doit nommer un alias de [models] (alias : {', '.join(models)})."
         )
-    return Config(default_model=default, models=models, limits=limits, tools=tools)
+    return Config(
+        default_model=default,
+        models=models,
+        limits=limits,
+        tools=tools,
+        sessions=sessions,
+    )

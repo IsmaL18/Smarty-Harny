@@ -11,7 +11,12 @@ import asyncio
 import copy
 import itertools
 import json
+import os
 import re
+import signal
+import subprocess
+import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -399,3 +404,189 @@ def money(amount: str) -> re.Pattern[str]:
     integer, decimals = amount.split(".")
     decimals = decimals.rstrip("0") or "0"
     return re.compile(rf"(?<![\d.,]){integer}[.,]{decimals}0*(?!\d)")
+
+
+# --------------------------------------------------------------------------
+# Lancement par le point d'entrée réel `cli.main.main` (ADR-0012 §Conséquences)
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class Launch:
+    """Résultat d'un lancement : code de sortie, sortie standard, erreurs, et
+    invites de saisie affichées (`asked`, vide si rien n'a été demandé au clavier)."""
+
+    code: int
+    out: str
+    err: str
+    asked: list[str] = field(default_factory=list)
+
+
+def launch(
+    argv: list[str],
+    inputs: list[str],
+    models: dict[str, ScriptedModel],
+    workdir: Path,
+    monkeypatch,
+    capsys,
+    *,
+    budget: float = 1.0,
+    max_steps: int | None = None,
+    default: str = "scripted",
+    extra_toml: str = "",
+    profile_extra: str = "",
+) -> Launch:
+    """Lance `cli.main.main(argv, client_factory=...)` comme l'utilisateur.
+
+    `models` associe l'identifiant LiteLLM (`openai/<alias>`) de chaque profil au
+    modèle simulé. Le dossier courant est le dossier de travail ; les lignes
+    `inputs` sont tapées au clavier puis Ctrl+D. Fonction synchrone : `main`
+    lance sa propre boucle d'événements.
+    """
+    from harness.cli import main as cli_main
+
+    profiles = "".join(
+        f'[models.{alias}]\nmodel = "openai/{alias}"\n{profile_extra}'
+        for alias in models
+    )
+    steps = f"max_steps_per_turn = {max_steps}\n" if max_steps is not None else ""
+    monkeypatch.setenv("HARNESS_IN_CONTAINER", "1")
+    monkeypatch.setenv(
+        "HARNESS_CONFIG_TOML",
+        f'default_model = "{default}"\n[limits]\nbudget_usd = {budget}\n{steps}'
+        f"{profiles}{extra_toml}",
+    )
+    monkeypatch.chdir(workdir)
+    lines = list(inputs)
+    asked: list[str] = []
+
+    def fake_input(prompt: str = "") -> str:
+        asked.append(prompt)
+        print(prompt, end="")
+        if not lines:
+            raise EOFError
+        return lines.pop(0)
+
+    monkeypatch.setattr("builtins.input", fake_input)
+
+    def client_factory(profile: ModelProfile) -> ScriptedModel:
+        return models[profile.model.removeprefix("openai/")]
+
+    code = cli_main.main(argv, client_factory=client_factory)
+    captured = capsys.readouterr()
+    return Launch(code, captured.out, captured.err, asked)
+
+
+def headless(
+    argv: list[str],
+    models: dict[str, ScriptedModel],
+    workdir: Path,
+    monkeypatch,
+    capfd,
+    **options,
+) -> Launch:
+    """Lance un run headless (`-p ...`) par `cli.main.main`, sans aucune saisie.
+
+    À utiliser avec `capfd` (pas `capsys`) : le headless réserve le descripteur 1
+    au protocole (ADR-0012 §7), seule une capture au niveau des descripteurs voit
+    à la fois ce qui passe par ce descripteur et par `sys.stdout`. Une erreur
+    d'usage signalée par `SystemExit` (argparse) est rendue comme un code de sortie.
+    """
+    try:
+        return launch(argv, [], models, workdir, monkeypatch, capfd, **options)
+    except SystemExit as exit_:
+        captured = capfd.readouterr()
+        code = (
+            exit_.code if isinstance(exit_.code, int) else int(exit_.code is not None)
+        )
+        return Launch(code, captured.out, captured.err)
+
+
+def jsonl_lines(out: str) -> list[dict]:
+    """Lignes du flux JSONL du headless : chacune doit être un objet JSON avec
+    un champ `type` (spec 003 §4.8.2) ; échoue en citant la ligne fautive."""
+    objects = []
+    for number, line in enumerate(out.splitlines(), 1):
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            raise AssertionError(
+                f"ligne {number} de stdout n'est pas du JSON : {line!r}"
+            ) from None
+        assert isinstance(obj, dict) and "type" in obj, (
+            f"ligne {number} sans champ `type` : {line!r}"
+        )
+        objects.append(obj)
+    return objects
+
+
+def values(obj: object) -> list:
+    """Toutes les valeurs scalaires d'un objet JSON, à toute profondeur.
+
+    Les noms des champs du flux (hors `type`, `resumed`, `schema`, `is_error`) ne
+    sont pas fixés par la spec ni l'ADR : les tests vérifient la présence d'une
+    information, pas le nom du champ qui la porte.
+    """
+    if isinstance(obj, dict):
+        return [v for item in obj.values() for v in values(item)]
+    if isinstance(obj, list):
+        return [v for item in obj for v in values(item)]
+    return [obj]
+
+
+def has_amount(obj: object, amount: float) -> bool:
+    """Un montant (ou un nombre) égal à `amount` figure-t-il dans l'objet ?"""
+    return any(
+        isinstance(v, int | float)
+        and not isinstance(v, bool)
+        and abs(v - amount) < 1e-9
+        for v in values(obj)
+    )
+
+
+def journals(workdir: Path) -> list[Path]:
+    """Fichiers de journal de session du dossier de travail (ADR-0012 §1)."""
+    return sorted((workdir / ".harness" / "sessions").glob("*.jsonl"))
+
+
+def read_journal(path: Path) -> list[dict]:
+    """Lignes JSON du journal : l'en-tête d'abord, puis les entrées."""
+    return [json.loads(line) for line in path.read_text().splitlines() if line]
+
+
+# --------------------------------------------------------------------------
+# Sous-processus de session (tests de verrou, de suppression et de purge)
+# --------------------------------------------------------------------------
+
+CHILD = Path(__file__).parent / "child_session.py"
+
+
+def wait_for(predicate: Callable[[], object], timeout: float = 30.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.05)
+    raise AssertionError("condition jamais atteinte avant le délai")
+
+
+def spawn_open_session(workdir: Path) -> subprocess.Popen:
+    """Un vrai harness garde une session ouverte (mode `hold` de `child_session.py`)
+    et rend la main quand sa première réponse est dans le journal."""
+    proc = subprocess.Popen(
+        [sys.executable, str(CHILD), str(workdir), "hold"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    wait_for(lambda: any("session ouverte" in p.read_text() for p in journals(workdir)))
+    return proc
+
+
+def kill_process_group(proc: subprocess.Popen) -> None:
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    proc.wait()

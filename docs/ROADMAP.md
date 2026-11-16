@@ -33,7 +33,7 @@ Ordre retenu : d'abord un agent qui marche de bout en bout, puis ce qui le rend 
 - **Inspirations :** Claude Code (édition, erreurs qui guident), Pi (paires `oldText`/`newText`, normalisation), Codex (troncature au milieu), Hermes (registre, débordement disque).
 
 ### It. 3 — Sessions et mode headless
-- **Notions :** `etat-et-sessions`, `mode-headless`.
+- **Notions :** `sessions-et-journal`, `mode-headless`.
 - **Fonctionnalités :**
   - journal JSONL en ajout seul (`id`/`parentId`) ;
   - reprise d'une session ;

@@ -14,6 +14,10 @@ command_timeout_s = 120
 max_saved_output_mb = 50          # plafond disque d'une sortie de commande enregistrée
 toolset = "full"                  # "full" ou "read_only" (lecture de fichiers seulement)
 
+[sessions]
+lock_stale_s = 30                # un verrou de session non renouvelé depuis ce délai est périmé
+retention_days = 30              # les sessions sans activité depuis ce nombre de jours sont purgées au lancement
+
 [models.sonnet]
 model = "anthropic/claude-sonnet-5-5"
 # api_key_env = "ANTHROPIC_API_KEY"   # défaut pour anthropic/

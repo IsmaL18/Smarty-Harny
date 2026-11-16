@@ -1,6 +1,6 @@
 # ADR-0001 — Boucle agent, contexte conversationnel et limites
 
-Statut : proposé (à valider par l'utilisateur) · Spec : `specs/001-v0-boucle-agent.md` · Notion : `boucle-agent`
+Statut : proposé (à valider par l'utilisateur) ; §7 complété par ADR-0012 (retrait journalisé comme nouveau point de départ) · Spec : `specs/001-v0-boucle-agent.md` · Notion : `boucle-agent`
 
 ## Contexte
 

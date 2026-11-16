@@ -1,6 +1,6 @@
 # ADR-0006 — Conteneur et dossier de travail monté
 
-Statut : proposé · Spec : §3 (risque accepté), §4.1, CA-4, CA-25 · Notion : `conteneur-frontiere`
+Statut : proposé ; §2 amendé par ADR-0012 (`HARNESS_HOST_WORKDIR`, `-t` seulement si terminal) · Spec : §3 (risque accepté), §4.1, CA-4, CA-25 · Notion : `conteneur-frontiere`
 
 ## Contexte
 
