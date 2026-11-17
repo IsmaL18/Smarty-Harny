@@ -1,6 +1,6 @@
 # ADR-0011 — Sorties longues : coupe au milieu et sorties enregistrées
 
-Statut : proposé · Spec : 002 §4.4, §4.5, §6, §9 q.3 et q.4, CA-40 à CA-45 · Remplace : ADR-0002 §3 (lignes « contenu > max_read_chars » et « sortie > max_output_chars ») et §8 ; amende ADR-0007 §2
+Statut : proposé ; §9, §11, §12 amendés par ADR-0012 pour les sessions enregistrées (sorties liées à la session ; §11 et §12 gardés pour les runs non enregistrés) · Spec : 002 §4.4, §4.5, §6, §9 q.3 et q.4, CA-40 à CA-45 · Remplace : ADR-0002 §3 (lignes « contenu > max_read_chars » et « sortie > max_output_chars ») et §8 ; amende ADR-0007 §2
 
 ## Contexte
 

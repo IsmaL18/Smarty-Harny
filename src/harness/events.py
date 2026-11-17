@@ -19,12 +19,14 @@ LimitKind = Literal["step", "budget"]
 class ToolCallStarted:
     name: str
     arguments: dict
+    id: str = ""  # relie l'appel à son résultat dans le flux headless (ADR-0012 §7)
 
 
 @dataclass(frozen=True)
 class ToolCallFinished:
     name: str
     result: ToolResult
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,14 @@ class LimitReached:
 @dataclass(frozen=True)
 class ProviderFailed:
     error: ProviderError
+
+
+@dataclass(frozen=True)
+class RecordingFailed:
+    """L'enregistrement de la session s'arrête ; la conversation continue en mémoire
+    (ADR-0012 §2)."""
+
+    message: str
 
 
 @dataclass(frozen=True)

@@ -28,16 +28,21 @@ litellm.suppress_debug_info = (
 )
 
 
+def key_env(profile: ModelProfile) -> str | None:
+    """Nom de la variable d'environnement qui porte la clé API du profil, s'il y en a une."""
+    if profile.api_key_env:
+        return profile.api_key_env
+    if profile.api_base:
+        return None
+    return _DEFAULT_KEY_ENV.get(profile.model.split("/", 1)[0])
+
+
 class LiteLLMClient:
     def __init__(self, profile: ModelProfile):
         self._profile = profile
 
     def _key_env(self) -> str | None:
-        if self._profile.api_key_env:
-            return self._profile.api_key_env
-        if self._profile.api_base:
-            return None
-        return _DEFAULT_KEY_ENV.get(self._profile.model.split("/", 1)[0])
+        return key_env(self._profile)
 
     async def check(self) -> None:
         """Vérifie clé et joignabilité sans appel facturé (ADR-0003 §4)."""

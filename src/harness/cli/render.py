@@ -9,6 +9,7 @@ from harness.events import (
     AssistantMessage,
     LimitReached,
     ProviderFailed,
+    RecordingFailed,
     StepCompleted,
     ToolCallFinished,
     ToolCallStarted,
@@ -49,6 +50,11 @@ def render(event: object, detail: bool) -> str | None:
             return summary
         case ProviderFailed(error):
             return f"{error.message_fr}\nVotre conversation est conservée : renvoyez un message pour réessayer."
+        case RecordingFailed(message):
+            return (
+                f"Avertissement : {message} La conversation continue, mais elle n'est "
+                "plus enregistrée : elle ne pourra pas être reprise au-delà de ce point."
+            )
         case StepCompleted():
             return None
     return None

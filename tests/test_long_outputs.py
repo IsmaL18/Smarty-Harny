@@ -11,7 +11,6 @@ import os
 import re
 import time
 
-import pytest
 from support import (
     Console,
     ScriptedModel,
@@ -227,29 +226,6 @@ async def test_saved_output_stops_at_the_disk_cap_while_the_tail_stays_the_real_
 
 
 # --- Cycle de vie des sorties enregistrées -------------------------------------
-
-
-@pytest.mark.parametrize("ending", ["/quit", EOFError()], ids=["quit", "ctrl-d"])
-async def test_saved_outputs_are_deleted_when_the_session_ends(workdir, ending):
-    """CA-44 : à la sortie (`/quit` ou Ctrl+D), plus aucun fichier de sortie
-    dans le dossier de travail (ADR-0011 §11 : `.harness/` disparaît avec eux)."""
-    shell = call("shell", command=_LONG_FAILING_COMMAND)
-    existed_before_exit: list[bool] = []
-
-    def check_then_quit() -> str:
-        existed_before_exit.append(bool(_saved_files(workdir)))
-        if isinstance(ending, str):
-            return ending
-        raise ending
-
-    console = Console("lance", check_then_quit)
-    model = ScriptedModel([tools(shell), say("fini")])
-
-    await run_repl(console, make_config(max_output=1000), {"scripted": model}, workdir)
-
-    assert existed_before_exit == [True], "le fichier devait exister pendant la session"
-    assert _saved_files(workdir) == []
-    assert not (workdir / ".harness").exists()
 
 
 async def test_stale_session_folders_are_purged_at_launch_but_recent_ones_are_kept(

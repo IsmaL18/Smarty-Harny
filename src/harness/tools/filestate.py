@@ -10,6 +10,7 @@ savoir si une commande shell a touché un fichier, jamais à refuser.
 
 import hashlib
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from harness.tools.environment import Environment
@@ -52,12 +53,26 @@ def _digest(data: bytes) -> str:
 class FileTracker:
     """Fichiers lus, écrits ou modifiés par l'agent pendant la session."""
 
-    def __init__(self) -> None:
+    def __init__(self, on_seen: Callable[[str, str], None] | None = None) -> None:
         # chemin résolu → (empreinte du contenu, (mtime_ns, taille))
         self._seen: dict[Path, tuple[str, tuple[int, int] | None]] = {}
+        self._on_seen = on_seen  # (chemin, empreinte) : l'enregistrement durable
+
+    def restore(self, files: dict[str, str]) -> None:
+        """Fichiers lus avant une reprise : sans `stat`, donc jamais « propres » pour le
+        shell (comportement prudent, ADR-0012 §2) ; seule l'empreinte compte."""
+        for path, digest in files.items():
+            self._seen[Path(path)] = (digest, None)
+
+    def reset(self) -> None:
+        """Changement de branche : le dossier a pu changer, tout est à relire (CA-S22)."""
+        self._seen.clear()
 
     async def record(self, env: Environment, path: str, data: bytes) -> None:
-        self._seen[env.resolve(path)] = (_digest(data), await env.stat(path))
+        key, digest = env.resolve(path), _digest(data)
+        self._seen[key] = (digest, await env.stat(path))
+        if self._on_seen:
+            self._on_seen(str(key), digest)
 
     def check(self, env: Environment, path: str, data: bytes) -> str:
         """« ok », « unread » (jamais lu) ou « changed » (contenu différent de la lecture)."""
