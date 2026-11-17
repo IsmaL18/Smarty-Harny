@@ -32,13 +32,11 @@ Fiches de notion associées : [`sessions-et-journal`](../notions/sessions-et-jou
 
 ## Non vérifié
 
-- La suite complète n'a jamais été lancée (une seule fois, en pre-delivery-check).
-- Heartbeat du verrou et perte du verrou : non testés.
-- Arrêt brutal testé sous macOS seulement ; atomicité de `rename` et `O_EXCL` sur le montage Colima, dérive d'horloge hôte/VM : non vérifiées.
+- Atomicité de `rename` et `O_EXCL` sur le montage Colima, dérive d'horloge hôte/VM : non vérifiées en tant que telles (la validation manuelle n'a rien montré d'anormal).
 - Clé coupée entre deux blocs de sortie : non testé. Échec de purge d'une session sans bloquer les autres : non testé.
-- Headless : préfixe ambigu et session occupée absents du test CA-S38 (occupée couverte par T-0101) ; journal non inscriptible (code 1) non testé ; échec à la création du journal ambigu (1 ou 2).
-- SIGTERM via `docker stop` sans pty : à contrôler à la validation humaine (CA-S40).
-- README (schéma du flux JSONL, codes de sortie, limite « journal en clair ») pas encore écrit ; lanceur `bin/harness` : `-t` conditionnel pas encore fait.
+- Headless : préfixe ambigu absent du test CA-S38 ; échec à la création du journal ambigu (code 1 ou 2).
+- README (schéma du flux JSONL, codes de sortie, limite « journal en clair ») pas encore écrit (demandé par l'ADR-0012).
+- Aucune revue indépendante des correctifs de revue : reviews `aucune` choisies par l'utilisateur pour ce correctif.
 
 ## Process : ce que l'itération a montré
 
@@ -50,7 +48,7 @@ Fiches de notion associées : [`sessions-et-journal`](../notions/sessions-et-jou
 
 ## Validation manuelle
 
-À faire (CA-S40) : reprise après `docker stop`, headless en pipe, SIGTERM sans pty.
+Faite par l'utilisateur le 2026-11-17 (CA-S40), dans le conteneur, avec un vrai modèle : lanceur (`HARNESS_HOST_WORKDIR`, `-t` conditionnel, stdout du mode `-p` propre dans un pipe), session multi-tours puis fermeture brutale et `docker stop`, reprise avec rejeu et coût cumulé, refus « occupée » et « autre dossier » (dossier déplacé), `/branch`, headless en script shell (pipe, codes de sortie, JSONL, reprise, `--no-session`, codes 2 et 3), signaux (`docker stop` et Ctrl+C, code 130, session reprenable), échec d'écriture du journal (avertissement, conversation conservée). L'utilisateur rapporte que tout est OK. Je n'ai rien exécuté moi-même ; les sorties exactes n'ont pas été consignées.
 
 ## Suite
 
