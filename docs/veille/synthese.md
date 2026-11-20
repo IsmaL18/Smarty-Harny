@@ -8,6 +8,7 @@ Panorama du 2026-11-15. Sources détaillées dans les fiches :
 | Codex CLI (OpenAI) | [codex.md](codex.md) | commit `ee344ca` | Rust | agent de code open source |
 | Hermes Agent (Nous Research) | [hermes-agent.md](hermes-agent.md) | commit `77a30e9` | Python | agent généraliste, mémoire, skills, multi-plateforme |
 | Pi (Mario Zechner) | [pi.md](pi.md) | commit `04fd089` (v1.5.2) | TypeScript | agent de code minimaliste |
+| Nodecode (Nodecode AI) | [nodecode.md](nodecode.md) | commit `fed3cb7` (ajouté le 2026-11-20, voir section 6) | Common Lisp | agent auto-modifiable à un seul outil `eval` |
 
 Les points marqués [déduit] ou non vérifiés dans les fiches le restent ici. Ces outils évoluent chaque mois : cette synthèse est datée.
 
@@ -67,3 +68,12 @@ Issus des convergences, à respecter dès la première ligne de code même quand
 4. Exécution des outils derrière une interface d'environnement (`BaseEnvironment`), pour pouvoir changer de backend.
 5. Historique en ajout seul, jamais réécrit (prépare le prompt caching et la compaction).
 6. Coût et tokens comptés à chaque appel (LiteLLM les fournit).
+
+## 6. Ajout du 2026-11-20 : Nodecode
+
+Nodecode n'entre pas dans les tableaux 1 à 3 (étudié après coup, par une lecture ciblée du code). Ce qu'il apporte de comparable ou de différent, détails dans [nodecode.md](nodecode.md) :
+
+- **Convergences.** Journal d'événements en ajout seul (SQLite), préfixe de requête protégé pour le cache, erreurs d'outils renvoyées au modèle, instructions projet par `AGENTS.md` ou `CLAUDE.md` avec budget.
+- **Divergences fortes.** Un seul outil (`eval`) dans lequel vivent shell et édition ; l'agent réécrit son propre code, sous git, avec retour arrière ; aucune compaction par résumé : éviction de tours entiers et relecture exacte ; l'agent édite lui-même sa fenêtre de contexte.
+- **Sécurité.** Aucun sandbox par défaut (comme Pi), mais un mode `--sandbox` non documenté qui remplace les clés d'API par des sentinelles dans la prison : piste directe pour le risque « clé lisible depuis le conteneur » du paragraphe 4.
+- **À manier avec prudence.** Le gain de 54 % de tokens face à Claude Code (ARC-AGI-3) est auto-déclaré et non reproductible depuis le dépôt.
